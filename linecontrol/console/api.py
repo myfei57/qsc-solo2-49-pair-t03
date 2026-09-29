@@ -55,7 +55,7 @@ class Api:
     def __init__(self, line: Line) -> None:
         self.line = line
         self.stream: list[Event] = []
-        self._unsubscribe = line.subscribe(self._collect)
+        self._unsubscribe = line.subscribe(self._collect, replay=STREAM_LIMIT)
 
     def _collect(self, event: Event) -> None:
         self.stream.append(event)
@@ -63,9 +63,10 @@ class Api:
             del self.stream[: len(self.stream) - STREAM_LIMIT]
 
     def close(self) -> None:
-        for unsubscribe in self._unsubscribe:
+        unsubscribe = self._unsubscribe
+        self._unsubscribe = None
+        if unsubscribe is not None:
             unsubscribe()
-        self._unsubscribe = []
         self.line.close()
 
     def stream_view(self) -> list[dict[str, object]]:
@@ -121,6 +122,7 @@ class Api:
         return {
             "ok": True,
             "delivered": self.line.bus.delivered(),
+            "failed": self.line.bus.failed(),
             "subscribers": {
                 kind.value: self.line.bus.subscribers(kind) for kind in EventKind
             },

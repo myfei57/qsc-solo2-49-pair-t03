@@ -2,7 +2,16 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from flask.testing import FlaskClient
+
+from linecontrol.console.app import create_app
+from linecontrol.domain.events import Event
+from linecontrol.domain.kinds import EventKind
+from linecontrol.line.machine import Line
+
+WEB_ROOT = Path(__file__).resolve().parents[1] / "web"
 
 
 def test_state_and_static(client: FlaskClient) -> None:
@@ -123,6 +132,16 @@ def test_machines_view(client: FlaskClient) -> None:
 def test_bus_view_reports_subscribers(client: FlaskClient) -> None:
     view = client.get("/api/bus").get_json()
     assert view["subscribers"]["arc"] >= 1
+    assert view["failed"] == 0
+
+
+def test_events_stream_backfills_events_published_before_attach(line: Line) -> None:
+    line.bus.publish(Event(kind=EventKind.ARC, source="weld", message="early"))
+    late_client = create_app(line, WEB_ROOT).test_client()
+    events = late_client.get("/api/events").get_json()["events"]
+    messages = [event["message"] for event in events]
+    assert "early" in messages
+    assert messages.index("recovered") < messages.index("early")
 
 
 def test_taper_weight_and_eta(client: FlaskClient) -> None:
