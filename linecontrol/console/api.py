@@ -55,7 +55,7 @@ class Api:
     def __init__(self, line: Line) -> None:
         self.line = line
         self.stream: list[Event] = []
-        self._unsubscribe = line.subscribe(self._collect)
+        self._unsubscribe = line.subscribe(self._collect, replay=STREAM_LIMIT)
 
     def _collect(self, event: Event) -> None:
         self.stream.append(event)
@@ -121,6 +121,9 @@ class Api:
         return {
             "ok": True,
             "delivered": self.line.bus.delivered(),
+            "failed": self.line.bus.failed(),
+            "history": len(self.line.bus.recent()),
+            "failures": self.line.bus.failures(),
             "subscribers": {
                 kind.value: self.line.bus.subscribers(kind) for kind in EventKind
             },

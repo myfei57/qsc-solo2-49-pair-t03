@@ -11,10 +11,20 @@ from ..domain.kinds import STREAM_KINDS
 class ViewOps:
     """Mixed into :class:`~linecontrol.line.machine.Line`."""
 
-    def subscribe(self, handler: Callable[[Event], None]) -> list[Callable[[], None]]:
-        """Subscribe ``handler`` to every kind forwarded to the console."""
+    def subscribe(
+        self,
+        handler: Callable[[Event], None],
+        replay: int = 0,
+    ) -> list[Callable[[], None]]:
+        """Subscribe ``handler`` to every kind forwarded to the console.
 
-        return [self.bus.subscribe(kind, handler) for kind in STREAM_KINDS]
+        With ``replay`` greater than zero the handler first catches up on
+        that many recent events per kind from the bus history.
+        """
+
+        return [
+            self.bus.subscribe(kind, handler, replay=replay) for kind in STREAM_KINDS
+        ]
 
     def close(self) -> None:
         """Release the line's own bus subscriptions."""
